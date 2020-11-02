@@ -1,0 +1,34 @@
+{
+  "name": "devzer0x00/simple-pdo-query",
+  "description": "Simple PDO Query",
+  "type": "library",
+  "version": "0.1.0",
+  "license": "proprietary",
+  "require": {
+    "php": "^7.4"
+  },
+  "require-dev": {
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "autoload": {
+    "psr-4": {
+      "DevZer0x00\\SimplePDOQuery\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "DevZer0x00\\SimplePDOQuery\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test" : "./vendor/bin/simple-phpunit"
+  },
+  "extra": {
+    "symfony": {
+      "allow-contrib": false,
+      "require": "5.1.*"
+    }
+  }
+}
