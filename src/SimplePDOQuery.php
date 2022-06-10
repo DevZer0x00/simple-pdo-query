@@ -16,8 +16,8 @@ class SimplePDOQuery
     /**
      * @var PDO
      */
-    private $pdo;
- 
+    protected $pdo;
+
     public function __construct($pdo)
     {
         $this->pdo = $pdo;
@@ -43,7 +43,7 @@ class SimplePDOQuery
         $st = $this->doQuery($query, $parameters);
 
         if (preg_match('/^\s* INSERT \s+/six', $query)) {
-            return $this->pdo->lastInsertId();
+            return $this->lastInsertId();
         }
 
         if ($st->columnCount() == 0) {
@@ -51,6 +51,11 @@ class SimplePDOQuery
         }
 
         return 0;
+    }
+
+    protected function lastInsertId(): int
+    {
+        return $this->pdo->lastInsertId();
     }
 
     public function select(string $query, $parameters = [], ResultTransformerInterface $transformer = null): array
@@ -62,7 +67,7 @@ class SimplePDOQuery
         }
 
         $data = $st->fetchAll(PDO::FETCH_ASSOC);
-        $data = $data ? $data : [];
+        $data = $data ?: [];
 
         return $transformer->transform($data);
     }
@@ -100,7 +105,7 @@ class SimplePDOQuery
         return current($row);
     }
 
-    public function escape($s)
+    public function escape($s): string|int
     {
         if (is_int($s)) {
             return $s;
@@ -111,7 +116,12 @@ class SimplePDOQuery
         return $this->pdo->quote($s);
     }
 
-    private function doQuery($query, $parameters): PDOStatement
+    public function escapeIdentifier($s): string
+    {
+        return "`" . str_replace('`', '``', $s) . "`";
+    }
+
+    protected function doQuery($query, $parameters): PDOStatement
     {
         $parameters = array_reverse($parameters);
         $query = $this->expandPlaceholders($query, $parameters);
@@ -119,7 +129,7 @@ class SimplePDOQuery
         return $this->pdo->query($query);
     }
 
-    private function expandPlaceholders($query, &$parameters, &$paramIndex = 0)
+    protected function expandPlaceholders($query, &$parameters, &$paramIndex = 0)
     {
         $re = '{
             (?>
@@ -224,7 +234,7 @@ class SimplePDOQuery
                 case '#':
                     // Identifier.
                     if (!is_array($value)) {
-                        return $this->escape($value);
+                        return $this->escapeIdentifier($value);
                     }
 
                     $parts = array();
@@ -234,14 +244,13 @@ class SimplePDOQuery
                         }
                         $prefix = '';
                         if (!is_int($table)) {
-                            $prefix = $this->escape($table) . '.';
+                            $prefix = $this->escapeIdentifier($table) . '.';
                         }
                         foreach ($identifiers as $identifier) {
                             if (!is_string($identifier)) {
                                 throw new InvalidArgumentException('Placeholder value is not string - param %', $paramIndex);
                             } else {
-                                $parts[] = $prefix . ($identifier == '*' ? '*' :
-                                        $this->escape($identifier));
+                                $parts[] = $prefix . ($identifier == '*' ? '*' : $this->escapeIdentifier($identifier));
                             }
                         }
                     }
@@ -287,7 +296,7 @@ class SimplePDOQuery
             if ($skip) {
                 $block = '';
             }
-            
+
             return $block;
         }
 
