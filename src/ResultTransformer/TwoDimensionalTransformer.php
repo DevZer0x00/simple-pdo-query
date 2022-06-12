@@ -47,7 +47,7 @@ class TwoDimensionalTransformer implements ResultTransformerInterface
                 $m = [$row[$key] => $m];
             }
 
-            $result += $m;
+            $result = array_merge_recursive($result, $m);
         }
 
         return $result;
