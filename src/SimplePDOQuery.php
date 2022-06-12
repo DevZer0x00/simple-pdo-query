@@ -196,6 +196,10 @@ class SimplePDOQuery
                         throw new InvalidArgumentException('Placeholder value is not array - param %', $paramIndex);
                     }
 
+                    if (empty($value)) {
+                        return 'NULL';
+                    }
+
                     $parts = $multi = [];
                     $mult = is_int(key($value)) && is_array(current($value));
 
