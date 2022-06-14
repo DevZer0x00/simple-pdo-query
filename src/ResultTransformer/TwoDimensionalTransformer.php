@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace DevZer0x00\SimplePDOQuery\ResultTransformer;
 
+use function count;
+
 class TwoDimensionalTransformer implements ResultTransformerInterface
 {
     private array $keys;
@@ -15,7 +17,7 @@ class TwoDimensionalTransformer implements ResultTransformerInterface
 
     public function transform(array $data): array
     {
-        if (count($this->keys) == 1) {
+        if (count($this->keys) === 1) {
             return $this->transformOneKey($data);
         }
 

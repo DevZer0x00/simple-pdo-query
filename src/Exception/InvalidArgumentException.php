@@ -6,5 +6,4 @@ namespace DevZer0x00\SimplePDOQuery\Exception;
 
 class InvalidArgumentException extends Exception
 {
-
 }

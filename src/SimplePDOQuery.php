@@ -6,12 +6,19 @@ use DevZer0x00\SimplePDOQuery\Exception\InvalidArgumentException;
 use DevZer0x00\SimplePDOQuery\ResultTransformer\ResultTransformerInterface;
 use PDO;
 use PDOStatement;
+use function count;
+use function is_array;
+use function is_float;
+use function is_int;
+use function is_scalar;
+use function is_string;
+use const INF;
 
 class SimplePDOQuery
 {
-    const TRANSFORM_ARRAY_KEY = 'array_key';
+    public const TRANSFORM_ARRAY_KEY = 'array_key';
 
-    const OPTIONAL_SKIP = INF;
+    public const OPTIONAL_SKIP = INF;
 
     /**
      * @var PDO
@@ -46,7 +53,7 @@ class SimplePDOQuery
             return $this->lastInsertId();
         }
 
-        if ($st->columnCount() == 0) {
+        if ($st->columnCount() === 0) {
             return $st->rowCount();
         }
 
@@ -109,7 +116,8 @@ class SimplePDOQuery
     {
         if (is_int($s)) {
             return $s;
-        } elseif (is_float($s)) {
+        }
+        if (is_float($s)) {
             return str_replace(',', '.', $s);
         }
 
@@ -118,7 +126,7 @@ class SimplePDOQuery
 
     public function escapeIdentifier($s): string
     {
-        return "`" . str_replace('`', '``', $s) . "`";
+        return '`' . str_replace('`', '``', $s) . '`';
     }
 
     protected function doQuery($query, $parameters): PDOStatement
@@ -164,7 +172,7 @@ class SimplePDOQuery
 
         $query = preg_replace_callback(
             $re,
-            function($m) use (&$parameters, &$paramIndex) {
+            function ($m) use (&$parameters, &$paramIndex) {
                 return $this->expandPlaceholdersCallback($m, $parameters, $paramIndex);
             },
             $query
@@ -180,7 +188,7 @@ class SimplePDOQuery
             $type = $m[4];
 
             $value = array_pop($parameters);
-            $paramIndex++;
+            ++$paramIndex;
 
             // Skip this value?
             if ($value === self::OPTIONAL_SKIP) {
@@ -210,41 +218,45 @@ class SimplePDOQuery
                         }
 
                         $prefix = is_int($prefix) ? '' : $this->escape($prefix) . '.';
-                        //для мультиинсерта очищаем ключи - их быть не может по синтаксису
+                        // для мультиинсерта очищаем ключи - их быть не может по синтаксису
 
-                        if ($mult && $type == 'a') {
+                        if ($mult && $type === 'a') {
                             $field = array_values($field);
                         }
 
                         foreach ($field as $k => $v) {
-                            $v = $v === null ? 'NULL' : $this->escape($v);
+                            if (is_bool($v)) {
+                                $v = (int)$v;
+                            } else {
+                                $v = $v === null ? 'NULL' : $this->escape($v);
+                            }
 
                             if (!is_int($k)) {
                                 $k = $this->escape($k);
-                                $parts[] = "$prefix$k=$v";
+                                $parts[] = "{$prefix}{$k}={$v}";
                             } else {
                                 $parts[] = $v;
                             }
                         }
                         if ($mult) {
-                            $multi[] = join(',', $parts);
+                            $multi[] = implode(',', $parts);
                             $parts = [];
                         }
                     }
 
                     return $mult
-                        ? join('), (', $multi)
-                        : join(', ', $parts);
+                        ? implode('), (', $multi)
+                        : implode(', ', $parts);
                 case '#':
                     // Identifier.
                     if (!is_array($value)) {
                         return $this->escapeIdentifier($value);
                     }
 
-                    $parts = array();
+                    $parts = [];
                     foreach ($value as $table => $identifiers) {
                         if (!is_array($identifiers)) {
-                            $identifiers = array($identifiers);
+                            $identifiers = [$identifiers];
                         }
                         $prefix = '';
                         if (!is_int($table)) {
@@ -253,16 +265,15 @@ class SimplePDOQuery
                         foreach ($identifiers as $identifier) {
                             if (!is_string($identifier)) {
                                 throw new InvalidArgumentException('Placeholder value is not string - param %', $paramIndex);
-                            } else {
-                                $parts[] = $prefix . ($identifier == '*' ? '*' : $this->escapeIdentifier($identifier));
                             }
+                            $parts[] = $prefix . ($identifier === '*' ? '*' : $this->escapeIdentifier($identifier));
                         }
                     }
 
-                    return join(', ', $parts);
+                    return implode(', ', $parts);
                 case 'n':
                     // NULL-based placeholder.
-                    return empty($value) ? 'NULL' : intval($value);
+                    return empty($value) ? 'NULL' : (int)$value;
             }
 
             // In non-native mode arguments are quoted.
@@ -277,9 +288,9 @@ class SimplePDOQuery
 
                     return $this->escape($value);
                 case 'd':
-                    return intval($value);
+                    return (int)$value;
                 case 'f':
-                    return str_replace(',', '.', floatval($value));
+                    return str_replace(',', '.', (float)$value);
             }
 
             // By default - escape as string.
@@ -287,10 +298,10 @@ class SimplePDOQuery
         }
 
         // Optional block.
-        if (isset($m[1]) && strlen($block = $m[1])) {
+        if (isset($m[1]) && mb_strlen($block = $m[1])) {
             // Проверка на {?  } - условный блок
             $skip = false;
-            if ($m[2] == '?') {
+            if ($m[2] === '?') {
                 $skip = array_pop($parameters) === self::OPTIONAL_SKIP;
                 $block[0] = ' ';
             }
@@ -309,26 +320,29 @@ class SimplePDOQuery
     }
 
     /**
-     * Разбирает опциональный блок - условие |
+     * Разбирает опциональный блок - условие |.
      *
-     * @param string $block блок, который нужно разобрать
+     * @param string $block      блок, который нужно разобрать
+     * @param mixed  $parameters
+     * @param mixed  $paramIndex
+     *
      * @return string что получается в результате разбора блока
      */
     private function expandOptionalBlock($block, &$parameters, &$paramIndex)
     {
-        $alts = array();
+        $alts = [];
         $alt = '';
         $sub = 0;
         $exp = explode('|', $block);
         // Оптимизация, так как в большинстве случаев | не используется
-        if (count($exp) == 1) {
+        if (count($exp) === 1) {
             $alts = $exp;
         } else {
             foreach ($exp as $v) {
                 // Реализуем автоматный магазин для нахождения нужной скобки
                 // На суммарную парность скобок проверять нет необходимости - об этом заботится регулярка
-                $sub += substr_count($v, '{');
-                $sub -= substr_count($v, '}');
+                $sub += mb_substr_count($v, '{');
+                $sub -= mb_substr_count($v, '}');
                 if ($sub > 0) {
                     $alt .= $v . '|';
                 } else {
@@ -344,7 +358,7 @@ class SimplePDOQuery
             $block = $this->expandPlaceholders($block, $parameters, $paramIndex);
             // Необходимо пройти все блоки, так как если пропустить оставшиесь,
             // то это нарушит порядок подставляемых значений
-            if ($plNoValue == false && $r == '') {
+            if ($plNoValue === false && $r === '') {
                 $r = ' ' . $block . ' ';
             }
         }
