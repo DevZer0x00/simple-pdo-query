@@ -138,7 +138,7 @@ class SimplePDOQuery
         return $this->pdo->query($query);
     }
 
-    protected function expandPlaceholders($query, &$parameters, &$paramIndex = 0)
+    protected function expandPlaceholders($query, &$parameters, &$paramIndex = 0, &$skip = null)
     {
         $re = '{
             (?>
@@ -173,8 +173,8 @@ class SimplePDOQuery
 
         $query = preg_replace_callback(
             $re,
-            function ($m) use (&$parameters, &$paramIndex) {
-                return $this->expandPlaceholdersCallback($m, $parameters, $paramIndex);
+            function ($m) use (&$parameters, &$paramIndex, &$skip) {
+                return $this->expandPlaceholdersCallback($m, $parameters, $paramIndex, $skip);
             },
             $query
         );
@@ -182,7 +182,7 @@ class SimplePDOQuery
         return $query;
     }
 
-    private function expandPlaceholdersCallback($m, &$parameters, &$paramIndex)
+    private function expandPlaceholdersCallback($m, &$parameters, &$paramIndex, &$skip)
     {
         // Placeholder.
         if (!empty($m[3])) {
@@ -193,6 +193,8 @@ class SimplePDOQuery
 
             // Skip this value?
             if ($value === self::OPTIONAL_SKIP) {
+                $skip = true;
+
                 return '';
             }
 
@@ -307,7 +309,7 @@ class SimplePDOQuery
                 $block[0] = ' ';
             }
 
-            $block = $this->expandOptionalBlock($block, $parameters, $paramIndex);
+            $block = $this->expandOptionalBlock($block, $parameters, $paramIndex, $skip);
 
             if ($skip) {
                 $block = '';
@@ -329,7 +331,7 @@ class SimplePDOQuery
      *
      * @return string что получается в результате разбора блока
      */
-    private function expandOptionalBlock($block, &$parameters, &$paramIndex)
+    private function expandOptionalBlock($block, &$parameters, &$paramIndex, &$skip)
     {
         $alts = [];
         $alt = '';
@@ -356,7 +358,7 @@ class SimplePDOQuery
         foreach ($alts as $block) {
             $plNoValue = false;
 
-            $block = $this->expandPlaceholders($block, $parameters, $paramIndex);
+            $block = $this->expandPlaceholders($block, $parameters, $paramIndex, $skip);
             // Необходимо пройти все блоки, так как если пропустить оставшиесь,
             // то это нарушит порядок подставляемых значений
             if ($plNoValue === false && $r === '') {
