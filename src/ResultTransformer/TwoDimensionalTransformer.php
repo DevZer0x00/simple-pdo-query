@@ -10,9 +10,12 @@ class TwoDimensionalTransformer implements ResultTransformerInterface
 {
     private array $keys;
 
-    public function __construct(array $keys)
+    private bool $dataAsLastElement;
+
+    public function __construct(array $keys, $dataAsLastElement = false)
     {
         $this->keys = $keys;
+        $this->dataAsLastElement = $dataAsLastElement;
     }
 
     public function transform(array $data): array
@@ -31,7 +34,7 @@ class TwoDimensionalTransformer implements ResultTransformerInterface
         $result = [];
 
         foreach ($data as $row) {
-            $result[$row[$key]] = $row;
+            $result[$row[$key]][] = $row;
         }
 
         return $result;
@@ -40,16 +43,21 @@ class TwoDimensionalTransformer implements ResultTransformerInterface
     private function transformTree(array $data): array
     {
         $result = [];
-        $keys = array_reverse($this->keys);
+        $keys = $this->keys;
 
         foreach ($data as $row) {
-            $m = $row;
+            $z = &$result;
 
             foreach ($keys as $key) {
-                $m = [$row[$key] => $m];
+                $z[$row[$key]] ??= [];
+                $z = &$z[$row[$key]];
             }
 
-            $result = array_merge_recursive($result, $m);
+            if ($this->dataAsLastElement) {
+                $z = $row;
+            } else {
+                $z[] = $row;
+            }
         }
 
         return $result;
