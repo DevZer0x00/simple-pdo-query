@@ -2,6 +2,7 @@
 
 namespace DevZer0x00\SimplePDOQuery;
 
+use DateTimeInterface;
 use DevZer0x00\SimplePDOQuery\Exception\InvalidArgumentException;
 use DevZer0x00\SimplePDOQuery\ResultTransformer\ResultTransformerInterface;
 use PDO;
@@ -167,7 +168,7 @@ class SimplePDOQuery
               |
             (?>
                 # Placeholder
-                (\?) ( [_dsafn&|\#]? )                           #2 #3
+                (\?) ( date|[_dsafn&|\#]? )                           #2 #3
             )
         }sxS';
 
@@ -200,6 +201,12 @@ class SimplePDOQuery
 
             // First process guaranteed non-native placeholders.
             switch ($type) {
+                case 'date':
+                    if (!$value instanceof DateTimeInterface) {
+                        throw new InvalidArgumentException('Placeholder value not instanceof \DateTimeInterface');
+                    }
+
+                    return sprintf('"%s"', $value->format('Y-m-d'));
                 case 's':
                     return $this->expandPlaceholders($value, $parameters, $paramIndex);
                 case 'a':
