@@ -168,7 +168,7 @@ class SimplePDOQuery
               |
             (?>
                 # Placeholder
-                (\?) ( date|[_dsafn&|\#]? )                           #2 #3
+                (\?) ( date|dt|[_dsafn&|\#]? )                           #2 #3
             )
         }sxS';
 
@@ -207,6 +207,12 @@ class SimplePDOQuery
                     }
 
                     return sprintf('"%s"', $value->format('Y-m-d'));
+                case 'dt':
+                    if (!$value instanceof DateTimeInterface) {
+                        throw new InvalidArgumentException('Placeholder value not instanceof \DateTimeInterface');
+                    }
+
+                    return sprintf('"%s"', $value->format('Y-m-d H:i:s'));
                 case 's':
                     return $this->expandPlaceholders($value, $parameters, $paramIndex);
                 case 'a':
