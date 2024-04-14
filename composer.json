@@ -23,5 +23,5 @@
   },
   "scripts": {
     "test" : "./vendor/bin/simple-phpunit"
-  },
+  }
 }
